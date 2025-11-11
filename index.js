@@ -32,9 +32,22 @@ async function run() {
     app.get("/events", async (req, res) => {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
+
       const result = await eventsCollection
         .find({ eventDate: { $gte: today.toISOString() } })
         .sort({ eventDate: "asc" })
+        .toArray();
+      res.send(result);
+    });
+
+    // Search
+
+    app.get("/search", async (req, res) => {
+      const searchText = req.query.search;
+      const result = await eventsCollection
+        .find({
+          title: { $regex: searchText, $options: "i" },
+        })
         .toArray();
       res.send(result);
     });
