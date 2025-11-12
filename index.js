@@ -44,7 +44,6 @@ const client = new MongoClient(uri, {
 
 async function run() {
   try {
-    await client.connect();
     const db = client.db("Social-development");
     const eventsCollection = db.collection("events");
     const joinedEventsCollection = db.collection("joined-events");
@@ -123,8 +122,6 @@ async function run() {
       const event = await eventsCollection.findOne({ _id: new ObjectId(id) });
       res.send(event);
     });
-
-    await client.db("admin").command({ ping: 1 });
 
     // My events
 
@@ -208,6 +205,7 @@ async function run() {
       });
       res.send(result);
     });
+
     // Checking API Server
     console.log(
       "Pinged your deployment. You successfully connected to MongoDB!"
