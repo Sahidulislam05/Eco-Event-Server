@@ -43,12 +43,19 @@ async function run() {
     // Search
 
     app.get("/search", async (req, res) => {
-      const searchText = req.query.search;
-      const result = await eventsCollection
-        .find({
-          title: { $regex: searchText, $options: "i" },
-        })
-        .toArray();
+      const searchText = req.query.search || "";
+      const type = req.query.type || "all";
+      const query = {};
+
+      if (searchText) {
+        query.title = { $regex: searchText, $options: "i" };
+      }
+
+      if (type !== "all") {
+        query.eventType = { $regex: `^${type}$`, $options: "i" };
+      }
+
+      const result = await eventsCollection.find(query).toArray();
       res.send(result);
     });
 
