@@ -123,6 +123,7 @@ async function run() {
       const event = await eventsCollection.findOne({ _id: new ObjectId(id) });
       res.send(event);
     });
+
     await client.db("admin").command({ ping: 1 });
 
     // My events
