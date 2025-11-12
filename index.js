@@ -45,7 +45,7 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
     const db = client.db("Social-development");
-    const eventsCollection = db.collection("events");
+    const eventsCollection = db.collection("new-events");
     const joinedEventsCollection = db.collection("joined-events");
 
     // Upcoming Events
