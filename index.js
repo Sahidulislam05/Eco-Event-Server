@@ -2,6 +2,9 @@ const express = require("express");
 const cors = require("cors");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 require("dotenv").config();
+const admin = require("firebase-admin");
+
+const serviceAccount = require("./EcoEvent.json");
 const app = express();
 const port = process.env.PORT || 3000;
 
@@ -9,6 +12,25 @@ const port = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
+
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+});
+
+const verifyFireBaseToken = async (req, res, next) => {
+  const authorization = req.headers.authorization;
+  if (!authorization) {
+    return res.status(401).send({ massage: "Unauthorized access" });
+  }
+  const token = authorization.split(" ")[1];
+  try {
+    const userInfo = await admin.auth().verifyIdToken(token);
+    req.tokenEmail = userInfo.email;
+    next();
+  } catch {
+    return res.status(401).send({ massage: "Unauthorized access" });
+  }
+};
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@sahidul-islam.zbcwnr8.mongodb.net/?appName=Sahidul-Islam`;
 
@@ -61,7 +83,7 @@ async function run() {
 
     // Create Events
 
-    app.post("/events", async (req, res) => {
+    app.post("/events", verifyFireBaseToken, async (req, res) => {
       const event = req.body;
       const {
         title,
@@ -195,11 +217,9 @@ async function run() {
 run().catch(console.dir);
 
 app.get("/", (req, res) => {
-  res.send("Social development events platform server is running!");
+  res.send("EcoEvent server is running!");
 });
 
 app.listen(port, () => {
-  console.log(
-    `Social Development Events app Server listening on port: ${port}`
-  );
+  console.log(`EcoEvent app Server listening on port: ${port}`);
 });
