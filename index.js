@@ -107,7 +107,7 @@ async function run() {
       }
 
       const today = new Date().toISOString().split("T")[0];
-      if (eventDate <= today) {
+      if (eventDate < today) {
         return res
           .status(400)
           .send({ message: "Event date must be in the future!" });
