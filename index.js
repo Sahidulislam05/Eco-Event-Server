@@ -9,18 +9,19 @@ const app = express();
 const port = process.env.PORT || 3000;
 
 // Middleware
-
 app.use(cors());
 app.use(express.json());
 
+// Firebase Admin
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
 });
 
+// Firebase Token Verify Middleware
 const verifyFireBaseToken = async (req, res, next) => {
   const authorization = req.headers.authorization;
   if (!authorization) {
-    return res.status(401).send({ massage: "Unauthorized access" });
+    return res.status(401).send({ message: "Unauthorized access" });
   }
   const token = authorization.split(" ")[1];
   try {
@@ -28,7 +29,7 @@ const verifyFireBaseToken = async (req, res, next) => {
     req.tokenEmail = userInfo.email;
     next();
   } catch {
-    return res.status(401).send({ massage: "Unauthorized access" });
+    return res.status(401).send({ message: "Unauthorized access" });
   }
 };
 
@@ -48,30 +49,35 @@ async function run() {
     const eventsCollection = db.collection("new-events");
     const joinedEventsCollection = db.collection("joined-events");
 
-    // Upcoming Events
-
+    /* 
+        Upcoming Events
+     */
     app.get("/events", async (req, res) => {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
       const result = await eventsCollection
-        .find({ eventDate: { $gte: today.toISOString() } })
-        .sort({ eventDate: "asc" })
+        .find({ eventDate: { $gte: today } })
+        .sort({ eventDate: 1 })
         .toArray();
       res.send(result);
     });
 
-    // Search
-
+    /* 
+        Search Events
+     */
     app.get("/search", async (req, res) => {
       const searchText = req.query.search || "";
       const type = req.query.type || "all";
-      const query = {};
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const query = { eventDate: { $gte: today } };
 
       if (searchText) {
         query.title = { $regex: searchText, $options: "i" };
       }
-
       if (type !== "all") {
         query.eventType = { $regex: `^${type}$`, $options: "i" };
       }
@@ -80,9 +86,10 @@ async function run() {
       res.send(result);
     });
 
-    // Create Events
-
-    app.post("/events", verifyFireBaseToken, async (req, res) => {
+    /* 
+        Create Event
+     */
+    app.post("/events", async (req, res) => {
       const event = req.body;
       const {
         title,
@@ -106,25 +113,38 @@ async function run() {
         return res.status(400).send({ message: "All fields are required!" });
       }
 
-      const today = new Date().toISOString().split("T")[0];
-      if (eventDate < today) {
+      const eventDateObj = new Date(eventDate);
+      if (isNaN(eventDateObj)) {
+        return res.status(400).send({ message: "Invalid event date!" });
+      }
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      if (eventDateObj <= today) {
         return res
           .status(400)
           .send({ message: "Event date must be in the future!" });
       }
+
+      event.eventDate = eventDateObj;
+
       const result = await eventsCollection.insertOne(event);
       res.send(result);
     });
 
-    // Events details
+    /* 
+        Event Details
+     */
     app.get("/events/:id", async (req, res) => {
       const id = req.params.id;
       const event = await eventsCollection.findOne({ _id: new ObjectId(id) });
       res.send(event);
     });
 
-    // My events
-
+    /* 
+        My Events
+     */
     app.get("/my-events", async (req, res) => {
       const email = req.query.email;
       const cursor = eventsCollection.find({ creatorEmail: email });
@@ -132,8 +152,9 @@ async function run() {
       res.send(result);
     });
 
-    // Update event
-
+    /* 
+        Update Event
+     */
     app.put("/events/:id", async (req, res) => {
       const { id } = req.params;
       const userEmail = req.body.email;
@@ -149,18 +170,20 @@ async function run() {
       res.send(result);
     });
 
-    // Joined events
-
+    /* 
+        Joined Events
+     */
     app.get("/joined-events", async (req, res) => {
       const { email, eventId } = req.query;
       if (!email) {
         return res.status(400).send({ message: "Email is required" });
       }
-      let query = { userEmail: email };
 
+      let query = { userEmail: email };
       if (eventId) {
         query.eventId = eventId;
       }
+
       const result = await joinedEventsCollection
         .find(query)
         .sort({ eventDate: 1 })
@@ -173,16 +196,14 @@ async function run() {
       res.send(result);
     });
 
-    // Store event
-
     app.post("/joined-events", async (req, res) => {
       const joinedEvent = req.body;
-
       const { eventId, userEmail } = joinedEvent;
 
       if (!eventId || !userEmail) {
         return res.status(400).send({ message: "Invalid data!" });
       }
+
       const existing = await joinedEventsCollection.findOne({
         eventId,
         userEmail,
@@ -196,8 +217,9 @@ async function run() {
       res.status(200).send({ message: "Joined successfully!", result });
     });
 
-    // Delete events
-
+    /* 
+        Delete Event
+     */
     app.delete("/events/:id", async (req, res) => {
       const id = req.params.id;
       const result = await eventsCollection.deleteOne({
@@ -206,10 +228,7 @@ async function run() {
       res.send(result);
     });
 
-    // Checking API Server
-    console.log(
-      "Pinged your deployment. You successfully connected to MongoDB!"
-    );
+    console.log(" MongoDB connected successfully!");
   } finally {
   }
 }
@@ -220,5 +239,5 @@ app.get("/", (req, res) => {
 });
 
 app.listen(port, () => {
-  console.log(`EcoEvent app Server listening on port: ${port}`);
+  console.log(` EcoEvent Server running on port: ${port}`);
 });
